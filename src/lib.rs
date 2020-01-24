@@ -1,8 +1,10 @@
 pub mod error;
 pub mod lexer;
 
+mod ast;
 mod intern;
 mod pos;
+mod ty;
 
 pub type Result<T> = std::result::Result<T, error::Error>;
 
