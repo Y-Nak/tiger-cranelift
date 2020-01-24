@@ -1,7 +1,8 @@
+use std::borrow::Cow;
+
 use crate::impl_prelude::*;
 
 use self::TokenKind::*;
-
 pub struct Lexer<'a> {
     pub byte_pos: BytePos,
     pub line: u32,
@@ -33,6 +34,10 @@ impl<'a> Lexer<'a> {
         self.peek = self.next_token_impl()?;
 
         Ok(current_token)
+    }
+
+    pub fn current_pos(&self) -> Pos {
+        Pos::from_cursor(self.cursor())
     }
 
     fn next_token_impl(&mut self) -> Result<Token> {
@@ -309,6 +314,67 @@ pub enum TokenKind {
     Ident(Symbol),
     Num(Symbol),
     LitStr(Symbol),
+}
+
+impl TokenKind {
+    pub fn as_str(self) -> Cow<'static, str> {
+        match self {
+            Plus => "+".into(),
+            Minus => "-".into(),
+            Star => "*".into(),
+            Slash => "/".into(),
+            Eq_ => "=".into(),
+            Ne => "<>".into(),
+            Lt => "<".into(),
+            Le => "<=".into(),
+            Gt => ">".into(),
+            Ge => ">=".into(),
+            And => "&".into(),
+            Or => "|".into(),
+            ColonEq => ":=".into(),
+            Comma => ",".into(),
+            Colon => ":".into(),
+            SemiColon => ";".into(),
+            LParen => "(".into(),
+            RParen => ")".into(),
+            LBracket => "[".into(),
+            RBracket => "]".into(),
+            LBrace => "{".into(),
+            RBrace => "}".into(),
+            Dot => ".".into(),
+            Eof => "EoF".into(),
+            Ident(symbol) => symbol.as_str().into(),
+            Num(symbol) => symbol.as_str().into(),
+            LitStr(symbol) => format!(r#""{}""#, symbol.as_str()).into(),
+        }
+    }
+
+    pub fn var(self) -> Option<Symbol> {
+        match self {
+            Ident(symbol) => {
+                if symbol.is_kw() {
+                    None
+                } else {
+                    Some(symbol)
+                }
+            }
+            _ => None,
+        }
+    }
+
+    pub fn num(self) -> Option<Symbol> {
+        match self {
+            Num(symbol) => Some(symbol),
+            _ => None,
+        }
+    }
+
+    pub fn litstr(self) -> Option<Symbol> {
+        match self {
+            LitStr(symbol) => Some(symbol),
+            _ => None,
+        }
+    }
 }
 
 #[cfg(test)]

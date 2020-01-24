@@ -1,10 +1,10 @@
+pub mod ast;
 pub mod error;
+pub mod intern;
 pub mod lexer;
-
-mod ast;
-mod intern;
-mod pos;
-mod ty;
+pub mod parser;
+pub mod pos;
+pub mod ty;
 
 pub type Result<T> = std::result::Result<T, error::Error>;
 

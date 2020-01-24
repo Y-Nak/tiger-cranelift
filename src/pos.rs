@@ -55,3 +55,9 @@ impl ops::Add for Pos {
         Self::new(start, end)
     }
 }
+
+impl ops::AddAssign for Pos {
+    fn add_assign(&mut self, rhs: Self) {
+        *self = *self + rhs;
+    }
+}

@@ -15,16 +15,16 @@ impl Symbol {
         INTERNER.with(|interner| interner.borrow().as_str(self))
     }
 
+    pub fn is_kw(self) -> bool {
+        (self.0 as usize) < PREFILL.len()
+    }
+
     fn from_usize(n: usize) -> Self {
         Self(n as u32)
     }
 
     fn as_usize(self) -> usize {
         self.0 as usize
-    }
-
-    fn is_kw(self) -> bool {
-        (self.0 as usize) < PREFILL.len()
     }
 }
 
@@ -95,7 +95,7 @@ decl_kw! {
     (Function, "function", 6),
     (If,       "if",       7),
     (In,       "in",       8),
-    (Let,      "Let",      9),
+    (Let,      "let",      9),
     (Nil,      "nil",      10),
     (Of,       "of",       11),
     (Then,     "then",     12),
