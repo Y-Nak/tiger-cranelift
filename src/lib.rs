@@ -1,6 +1,6 @@
 pub mod ast;
 pub mod error;
-pub mod intern;
+pub mod interner;
 pub mod lexer;
 pub mod parser;
 pub mod pos;
@@ -13,6 +13,6 @@ mod impl_prelude {
 
     pub use super::Result;
     pub use error::Error;
-    pub use intern::{kw, Symbol};
+    pub use interner::{kw, Symbol};
     pub use pos::{BytePos, Cursor, Pos};
 }
