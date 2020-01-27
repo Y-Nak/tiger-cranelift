@@ -22,12 +22,31 @@ pub enum DeclKind {
         init: Expr,
         ty: Option<Ty>,
     },
-    Function {
-        name: Symbol,
-        args: Vec<(Symbol, Ty)>,
-        ret_ty: Option<Ty>,
-        body: Expr,
-    },
+    Function(Function),
+}
+
+pub struct Function {
+    pub name: Symbol,
+    pub args: Vec<(Symbol, Ty)>,
+    pub ret_ty: Option<Ty>,
+    pub body: Expr,
+    pub free_variables: Vec<(Symbol, Ty)>,
+}
+
+impl Function {
+    pub fn new(name: Symbol, args: Vec<(Symbol, Ty)>, ret_ty: Option<Ty>, body: Expr) -> Self {
+        Self {
+            name,
+            args,
+            ret_ty,
+            body,
+            free_variables: Vec::new(),
+        }
+    }
+
+    pub fn append_free_variable(&mut self, var: Symbol, ty: Ty) {
+        self.free_variables.push((var, ty));
+    }
 }
 
 pub struct Expr {

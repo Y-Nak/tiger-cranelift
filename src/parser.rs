@@ -406,12 +406,8 @@ impl<'a> Parser<'a> {
         // Parse body.
         self.expect(TokenKind::Eq_)?;
         let body = self.parse_expr()?;
-        let kind = DeclKind::Function {
-            name,
-            args,
-            ret_ty,
-            body,
-        };
+        let func = Function::new(name, args, ret_ty, body);
+        let kind = DeclKind::Function(func);
         Ok(Decl::new(kind, pos + self.current_pos()))
     }
 
@@ -809,16 +805,11 @@ mod tests {
 
         assert_eq!(decls.len(), 1);
         match decls.remove(0).kind {
-            DeclKind::Function {
-                name,
-                args,
-                ret_ty,
-                body,
-            } => {
-                assert_eq!(name.as_str(), "add");
-                assert_ty_field(args, vec![("a", "int"), ("b", "int")]);
-                assert_eq!(extract_alias_ty(&ret_ty.unwrap()), "int");
-                assert_eq!(extract_binop(body).0, BinOpKind::Add);
+            DeclKind::Function(func) => {
+                assert_eq!(func.name.as_str(), "add");
+                assert_ty_field(func.args, vec![("a", "int"), ("b", "int")]);
+                assert_eq!(extract_alias_ty(&func.ret_ty.unwrap()), "int");
+                assert_eq!(extract_binop(func.body).0, BinOpKind::Add);
             }
             _ => panic!(),
         }
