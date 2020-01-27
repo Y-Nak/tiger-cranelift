@@ -6,6 +6,8 @@ pub mod parser;
 pub mod pos;
 pub mod ty;
 
+mod symbol_table;
+
 pub type Result<T> = std::result::Result<T, error::Error>;
 
 mod impl_prelude {

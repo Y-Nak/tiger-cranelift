@@ -3,7 +3,7 @@ use std::collections::HashMap;
 
 use typed_arena::Arena;
 
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug, Hash)]
 pub struct Symbol(u32);
 
 impl Symbol {
