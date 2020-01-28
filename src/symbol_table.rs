@@ -35,13 +35,6 @@ impl<T> SymbolTable<T> {
             None => None,
         }
     }
-
-    pub fn look_mut(&mut self, sym: Symbol) -> Option<&mut T> {
-        match self.table.get_mut(&sym) {
-            Some(v) => v.last_mut(),
-            None => None,
-        }
-    }
 }
 
 impl<T> Default for SymbolTable<T> {

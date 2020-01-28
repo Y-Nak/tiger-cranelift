@@ -4,14 +4,14 @@ use crate::lexer::{Lexer, Token, TokenKind};
 
 pub struct Parser<'a> {
     lexer: Lexer<'a>,
-    ty_unique_id: u32,
+    unique_ty_id: u32,
 }
 
 impl<'a> Parser<'a> {
     pub fn new(code: &'a [u8]) -> Result<Self> {
         Ok(Self {
             lexer: Lexer::new(code)?,
-            ty_unique_id: 0,
+            unique_ty_id: 0,
         })
     }
 
@@ -363,6 +363,7 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_ty(&mut self) -> Result<Ty> {
+        // TODO: Check key name duplication
         if let Some(lb_token) = self.eat(TokenKind::LBrace)? {
             let field: Vec<(Symbol, TyKind)> = self
                 .parse_ty_fields()?
@@ -373,10 +374,9 @@ impl<'a> Parser<'a> {
 
             let ty_kind = TyKind::Record {
                 field,
-                unique: self.ty_unique_id,
+                unique: self.get_unique(),
             };
             let ty = Ty::new(ty_kind, lb_token.pos + self.current_pos());
-            self.ty_unique_id += 1;
             Ok(ty)
         } else if let Some(array_token) = self.eat_kw(kw::Array)? {
             self.expect_kw(kw::Of)?;
@@ -385,10 +385,9 @@ impl<'a> Parser<'a> {
 
             let ty_kind = TyKind::Array {
                 elem_ty,
-                unique: self.ty_unique_id,
+                unique: self.get_unique(),
             };
             let ty = Ty::new(ty_kind, array_token.pos + self.current_pos());
-            self.ty_unique_id += 1;
             Ok(ty)
         } else {
             self.parse_ty_alias()
@@ -409,7 +408,7 @@ impl<'a> Parser<'a> {
         self.expect(TokenKind::ColonEq)?;
         let init = self.parse_expr()?;
 
-        let kind = DeclKind::VarDec { name, init, ty };
+        let kind = DeclKind::VarDec(VarDec { name, init, ty });
         Ok(Decl::new(kind, pos + self.current_pos()))
     }
 
@@ -549,6 +548,12 @@ impl<'a> Parser<'a> {
 
     fn current_pos(&self) -> Pos {
         self.lexer.current_pos()
+    }
+
+    fn get_unique(&mut self) -> u32 {
+        let id = self.unique_ty_id;
+        self.unique_ty_id += 1;
+        id
     }
 }
 
@@ -821,10 +826,10 @@ mod tests {
         let (mut decls, _) = extract_let_expr(expr);
         assert_eq!(decls.len(), 1);
         match decls.remove(0).kind {
-            DeclKind::VarDec { name, init, ty } => {
-                assert_eq!(name.as_str(), "my_var");
-                assert_eq!(extract_binop(init).0, BinOpKind::Mul);
-                assert_eq!(extract_alias_ty(&ty.unwrap().kind), "int");
+            DeclKind::VarDec(var_dec) => {
+                assert_eq!(var_dec.name.as_str(), "my_var");
+                assert_eq!(extract_binop(var_dec.init).0, BinOpKind::Mul);
+                assert_eq!(extract_alias_ty(&var_dec.ty.unwrap().kind), "int");
             }
             _ => panic!(),
         }

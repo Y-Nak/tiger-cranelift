@@ -4,6 +4,7 @@ pub mod interner;
 pub mod lexer;
 pub mod parser;
 pub mod pos;
+pub mod semant;
 pub mod ty;
 
 mod symbol_table;

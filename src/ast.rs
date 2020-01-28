@@ -12,16 +12,15 @@ impl Decl {
 }
 
 pub enum DeclKind {
-    TyDec {
-        name: Symbol,
-        ty: Ty,
-    },
-    VarDec {
-        name: Symbol,
-        init: Expr,
-        ty: Option<Ty>,
-    },
+    TyDec { name: Symbol, ty: Ty },
+    VarDec(VarDec),
     Function(Function),
+}
+
+pub struct VarDec {
+    pub name: Symbol,
+    pub init: Expr,
+    pub ty: Option<Ty>,
 }
 
 pub struct Function {
@@ -29,7 +28,7 @@ pub struct Function {
     pub args: Vec<(Symbol, Ty)>,
     pub ret_ty: Ty,
     pub body: Expr,
-    pub free_variables: Vec<(Symbol, Ty)>,
+    pub free_variables: Vec<(Symbol, TyKind)>,
 }
 
 impl Function {
@@ -41,10 +40,6 @@ impl Function {
             body,
             free_variables: Vec::new(),
         }
-    }
-
-    pub fn append_free_variable(&mut self, var: Symbol, ty: Ty) {
-        self.free_variables.push((var, ty));
     }
 }
 

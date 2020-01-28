@@ -13,7 +13,7 @@ impl Ty {
     }
 }
 
-#[derive(PartialEq, Eq, Clone)]
+#[derive(Clone, Debug)]
 pub enum TyKind {
     Int,
     Unit,
@@ -34,17 +34,8 @@ pub enum TyKind {
 impl TyKind {
     pub fn is_complete(&self) -> bool {
         match self {
-            Int | Unit | Nil | String_ => true,
+            Int | Unit | Nil | String_ | Array { .. } | Record { .. } => true,
             Alias(_) | Invalid => false,
-            Array { elem_ty, .. } => elem_ty.is_complete(),
-            Record { field, .. } => {
-                for (_, t) in field.iter() {
-                    if !t.is_complete() {
-                        return false;
-                    }
-                }
-                true
-            }
         }
     }
 
@@ -62,6 +53,13 @@ impl TyKind {
         }
     }
 
+    pub fn is_alias(&self) -> bool {
+        match self {
+            Alias(..) => true,
+            _ => false,
+        }
+    }
+
     pub fn record_field_unchecked(&self) -> &[(Symbol, TyKind)] {
         match self {
             TyKind::Record { field, .. } => &field,
@@ -73,6 +71,25 @@ impl TyKind {
         match self {
             TyKind::Array { elem_ty, .. } => elem_ty,
             _ => panic!("Expectd array type"),
+        }
+    }
+}
+
+impl PartialEq for TyKind {
+    fn eq(&self, rhs: &Self) -> bool {
+        match (self, rhs) {
+            (TyKind::Int, TyKind::Int)
+            | (TyKind::String_, TyKind::String_)
+            | (TyKind::Nil, TyKind::Nil) => true,
+
+            (TyKind::Alias(lhs), TyKind::Alias(rhs)) => lhs == rhs,
+
+            (TyKind::Array { unique: lhs, .. }, TyKind::Array { unique: rhs, .. })
+            | (TyKind::Record { unique: lhs, .. }, TyKind::Record { unique: rhs, .. }) => {
+                lhs == rhs
+            }
+
+            _ => false,
         }
     }
 }
