@@ -1,5 +1,4 @@
 use crate::impl_prelude::*;
-use crate::ty::Ty;
 
 pub struct Decl {
     pub kind: DeclKind,
@@ -52,11 +51,16 @@ impl Function {
 pub struct Expr {
     pub kind: ExprKind,
     pub pos: Pos,
+    pub ty: Ty,
 }
 
 impl Expr {
     pub fn new(kind: ExprKind, pos: Pos) -> Self {
-        Expr { kind, pos }
+        Expr {
+            kind,
+            pos,
+            ty: Ty::new(TyKind::Invalid, Pos::dummy()),
+        }
     }
 
     pub fn binop(lhs: Expr, rhs: Expr, kind: BinOpKind) -> Self {
@@ -129,6 +133,18 @@ pub enum ExprKind {
     Break,
     ExprSeq(Vec<Expr>),
     Var(Symbol),
+    FieldAccess {
+        lvalue: Box<Expr>,
+        field: Symbol,
+    },
+    Index {
+        lvalue: Box<Expr>,
+        index: Box<Expr>,
+    },
+    Assign {
+        lvalue: Box<Expr>,
+        rhs: Box<Expr>,
+    },
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -145,14 +161,11 @@ pub enum BinOpKind {
     Ge,
     LogicalAnd,
     LogicalOr,
-    Index,
-    Assign,
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum UnOpKind {
     Minus,
-    FieldAccess(Symbol),
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]

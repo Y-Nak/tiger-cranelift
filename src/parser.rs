@@ -1,7 +1,6 @@
 use crate::ast::*;
 use crate::impl_prelude::*;
 use crate::lexer::{Lexer, Token, TokenKind};
-use crate::ty::*;
 
 pub struct Parser<'a> {
     lexer: Lexer<'a>,
@@ -263,7 +262,11 @@ impl<'a> Parser<'a> {
             } else {
                 // Parse indexing.
                 let var = Expr::new(ExprKind::Var(name), pos);
-                let lvalue = Expr::binop(var, expr, BinOpKind::Index);
+                let kind = ExprKind::Index {
+                    lvalue: var.into(),
+                    index: expr.into(),
+                };
+                let lvalue = Expr::new(kind, pos + self.current_pos());
                 self.parse_access(lvalue)?
             }
         } else if self.eat(TokenKind::LBrace)?.is_some() {
@@ -276,13 +279,13 @@ impl<'a> Parser<'a> {
             return Ok(Expr::new(kind, pos + self.current_pos()));
         } else if self.eat(TokenKind::Dot)?.is_some() {
             // Parse field access.
-            let (field_name, _) = self.expect_var()?;
+            let (field, _) = self.expect_var()?;
             let var = Expr::new(ExprKind::Var(name), pos);
-            let lvalue = Expr::unop(
-                var,
-                UnOpKind::FieldAccess(field_name),
-                pos + self.current_pos(),
-            );
+            let kind = ExprKind::FieldAccess {
+                lvalue: var.into(),
+                field,
+            };
+            let lvalue = Expr::new(kind, pos + self.current_pos());
             self.parse_access(lvalue)?
         } else {
             // Parse s.imple var
@@ -292,7 +295,11 @@ impl<'a> Parser<'a> {
         // Parse assign operator if exists.
         if self.eat(TokenKind::ColonEq)?.is_some() {
             let rhs = self.parse_expr()?;
-            Ok(Expr::binop(lvalue, rhs, BinOpKind::Assign))
+            let kind = ExprKind::Assign {
+                lvalue: lvalue.into(),
+                rhs: rhs.into(),
+            };
+            Ok(Expr::new(kind, pos + self.current_pos()))
         } else {
             Ok(lvalue)
         }
@@ -301,16 +308,20 @@ impl<'a> Parser<'a> {
     fn parse_access(&mut self, mut lvalue: Expr) -> Result<Expr> {
         let pos = lvalue.pos;
         if self.eat(TokenKind::Dot)?.is_some() {
-            let (field_name, _) = self.expect_var()?;
-            lvalue = Expr::unop(
-                lvalue,
-                UnOpKind::FieldAccess(field_name),
-                pos + self.current_pos(),
-            );
+            let (field, _) = self.expect_var()?;
+            let kind = ExprKind::FieldAccess {
+                lvalue: lvalue.into(),
+                field,
+            };
+            lvalue = Expr::new(kind, pos + self.current_pos());
             self.parse_access(lvalue)
         } else if self.eat(TokenKind::LBracket)?.is_some() {
             let index = self.parse_expr()?;
-            lvalue = Expr::binop(lvalue, index, BinOpKind::Index);
+            let kind = ExprKind::Index {
+                lvalue: lvalue.into(),
+                index: index.into(),
+            };
+            lvalue = Expr::new(kind, pos + self.current_pos());
             self.parse_access(lvalue)
         } else {
             Ok(lvalue)
@@ -671,7 +682,10 @@ mod tests {
     fn test_indexing() {
         let code = "arr[10]";
         let expr = parse(code);
-        assert_eq!(extract_binop(expr).0, BinOpKind::Index);
+        match expr.kind {
+            ExprKind::Index { .. } => {}
+            _ => panic!("Index"),
+        }
     }
 
     #[test]
@@ -708,7 +722,10 @@ mod tests {
                 assert_eq!("x", var.as_str());
                 assert_eq!(extract_binop(*from).0, BinOpKind::Add);
                 assert_eq!(extract_binop(*to).0, BinOpKind::Mul);
-                assert_eq!(extract_binop(*body).0, BinOpKind::Assign);
+                match body.kind {
+                    ExprKind::Assign { .. } => {}
+                    _ => panic!("Assign"),
+                }
             }
             _ => panic!(),
         }
@@ -723,7 +740,10 @@ mod tests {
         match expr.kind {
             ExprKind::While { cond, body } => {
                 assert_eq!(extract_binop(*cond).0, BinOpKind::Le);
-                assert_eq!(extract_binop(*body).0, BinOpKind::Assign);
+                match body.kind {
+                    ExprKind::Assign { .. } => {}
+                    _ => panic!("Assign"),
+                }
             }
             _ => panic!(),
         }
