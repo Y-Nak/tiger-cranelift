@@ -27,13 +27,13 @@ pub enum DeclKind {
 pub struct Function {
     pub name: Symbol,
     pub args: Vec<(Symbol, Ty)>,
-    pub ret_ty: Option<Ty>,
+    pub ret_ty: Ty,
     pub body: Expr,
     pub free_variables: Vec<(Symbol, Ty)>,
 }
 
 impl Function {
-    pub fn new(name: Symbol, args: Vec<(Symbol, Ty)>, ret_ty: Option<Ty>, body: Expr) -> Self {
+    pub fn new(name: Symbol, args: Vec<(Symbol, Ty)>, ret_ty: Ty, body: Expr) -> Self {
         Self {
             name,
             args,
