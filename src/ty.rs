@@ -12,14 +12,21 @@ impl Ty {
     }
 }
 
-#[derive(Clone)]
+#[derive(PartialEq, Eq, Clone)]
 pub enum TyKind {
     Int,
     Unit,
+    String_,
     Nil,
     Alias(Symbol),
-    Array(Box<Ty>),
-    Record(Vec<(Symbol, Ty)>),
+    Array {
+        elem_ty: Box<TyKind>,
+        unique: u32,
+    },
+    Record {
+        field: Vec<(Symbol, TyKind)>,
+        unique: u32,
+    },
     Invalid,
 }
 
@@ -27,12 +34,12 @@ impl TyKind {
     pub fn is_complete(&self) -> bool {
         use TyKind::*;
         match self {
-            Int | Unit | Nil => true,
+            Int | Unit | Nil | String_ => true,
             Alias(_) | Invalid => false,
-            Array(ty) => ty.kind.is_complete(),
-            Record(field) => {
+            Array { elem_ty, .. } => elem_ty.is_complete(),
+            Record { field, .. } => {
                 for (_, t) in field.iter() {
-                    if !t.kind.is_complete() {
+                    if !t.is_complete() {
                         return false;
                     }
                 }

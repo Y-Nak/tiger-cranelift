@@ -4,12 +4,14 @@ use crate::lexer::{Lexer, Token, TokenKind};
 
 pub struct Parser<'a> {
     lexer: Lexer<'a>,
+    ty_unique_id: u32,
 }
 
 impl<'a> Parser<'a> {
     pub fn new(code: &'a [u8]) -> Result<Self> {
         Ok(Self {
             lexer: Lexer::new(code)?,
+            ty_unique_id: 0,
         })
     }
 
@@ -362,20 +364,32 @@ impl<'a> Parser<'a> {
 
     fn parse_ty(&mut self) -> Result<Ty> {
         if let Some(lb_token) = self.eat(TokenKind::LBrace)? {
-            let ty_fields = self.parse_ty_fields()?;
+            let field: Vec<(Symbol, TyKind)> = self
+                .parse_ty_fields()?
+                .into_iter()
+                .map(|(name, ty)| (name, ty.kind))
+                .collect();
             self.expect(TokenKind::RBrace)?;
-            Ok(Ty::new(
-                TyKind::Record(ty_fields),
-                lb_token.pos + self.current_pos(),
-            ))
+
+            let ty_kind = TyKind::Record {
+                field,
+                unique: self.ty_unique_id,
+            };
+            let ty = Ty::new(ty_kind, lb_token.pos + self.current_pos());
+            self.ty_unique_id += 1;
+            Ok(ty)
         } else if let Some(array_token) = self.eat_kw(kw::Array)? {
             self.expect_kw(kw::Of)?;
-            let (ty_ref, pos) = self.expect_var()?;
-            let inner_ty = Ty::new(TyKind::Alias(ty_ref), pos);
-            Ok(Ty::new(
-                TyKind::Array(inner_ty.into()),
-                array_token.pos + self.current_pos(),
-            ))
+            let (ty_ref, _) = self.expect_var()?;
+            let elem_ty = Box::new(TyKind::Alias(ty_ref));
+
+            let ty_kind = TyKind::Array {
+                elem_ty,
+                unique: self.ty_unique_id,
+            };
+            let ty = Ty::new(ty_kind, array_token.pos + self.current_pos());
+            self.ty_unique_id += 1;
+            Ok(ty)
         } else {
             self.parse_ty_alias()
         }
@@ -409,9 +423,9 @@ impl<'a> Parser<'a> {
 
         // Parse return type if exists.
         let ret_ty = if self.eat(TokenKind::Colon)?.is_some() {
-            Some(self.parse_ty_alias()?)
+            self.parse_ty_alias()?
         } else {
-            None
+            Ty::new(TyKind::Unit, Pos::dummy())
         };
 
         // Parse body.
@@ -554,23 +568,23 @@ mod tests {
         }
     }
 
-    fn extract_alias_ty(ty: &Ty) -> &str {
-        match ty.kind {
-            TyKind::Alias(name) => name.as_str(),
+    fn extract_alias_ty(ty: &TyKind) -> &str {
+        match ty {
+            &TyKind::Alias(name) => name.as_str(),
             _ => panic!(),
         }
     }
 
-    fn extract_record_ty(ty: Ty) -> Vec<(Symbol, Ty)> {
+    fn extract_record_ty(ty: Ty) -> Vec<(Symbol, TyKind)> {
         match ty.kind {
-            TyKind::Record(field) => field,
+            TyKind::Record { field, .. } => field,
             _ => panic!(),
         }
     }
 
-    fn extract_array_ty(ty: Ty) -> Ty {
+    fn extract_array_ty(ty: Ty) -> TyKind {
         match ty.kind {
-            TyKind::Array(ty) => *ty,
+            TyKind::Array { elem_ty, .. } => *elem_ty,
             _ => panic!(),
         }
     }
@@ -596,7 +610,7 @@ mod tests {
         }
     }
 
-    fn assert_ty_field(field: Vec<(Symbol, Ty)>, expect: Vec<(&str, &str)>) {
+    fn assert_ty_field(field: Vec<(Symbol, TyKind)>, expect: Vec<(&str, &str)>) {
         assert_eq!(field.len(), expect.len());
         for (f, e) in field.into_iter().zip(expect.into_iter()) {
             assert_eq!(f.0.as_str(), e.0);
@@ -652,7 +666,7 @@ mod tests {
             ExprKind::Array { size, init, ty } => {
                 assert_eq!(extract_binop(*size).0, BinOpKind::Add);
                 assert_eq!(extract_binop(*init).0, BinOpKind::Mul);
-                assert_eq!(extract_alias_ty(&ty), "int");
+                assert_eq!(extract_alias_ty(&ty.kind), "int");
             }
             _ => panic!(),
         }
@@ -672,7 +686,7 @@ mod tests {
                 assert_eq!(extract_binop(field.1).0, BinOpKind::Sub);
                 assert_eq!(field.0.as_str(), "id2");
 
-                assert_eq!(extract_alias_ty(&ty), "my_record");
+                assert_eq!(extract_alias_ty(&ty.kind), "my_record");
             }
             _ => panic!(),
         }
@@ -788,7 +802,7 @@ mod tests {
 
         let (name, ty) = extract_decl_ty(decls.remove(0));
         assert_eq!(name.as_str(), "alias_ty");
-        assert_eq!(extract_alias_ty(&ty), "array_type");
+        assert_eq!(extract_alias_ty(&ty.kind), "array_type");
     }
 
     #[test]
@@ -806,7 +820,7 @@ mod tests {
             DeclKind::VarDec { name, init, ty } => {
                 assert_eq!(name.as_str(), "my_var");
                 assert_eq!(extract_binop(init).0, BinOpKind::Mul);
-                assert_eq!(extract_alias_ty(&ty.unwrap()), "int");
+                assert_eq!(extract_alias_ty(&ty.unwrap().kind), "int");
             }
             _ => panic!(),
         }
@@ -827,8 +841,13 @@ mod tests {
         match decls.remove(0).kind {
             DeclKind::Function(func) => {
                 assert_eq!(func.name.as_str(), "add");
-                assert_ty_field(func.args, vec![("a", "int"), ("b", "int")]);
-                assert_eq!(extract_alias_ty(&func.ret_ty.unwrap()), "int");
+                let args = func
+                    .args
+                    .into_iter()
+                    .map(|(name, ty)| (name, ty.kind))
+                    .collect();
+                assert_ty_field(args, vec![("a", "int"), ("b", "int")]);
+                assert_eq!(extract_alias_ty(&func.ret_ty.kind), "int");
                 assert_eq!(extract_binop(func.body).0, BinOpKind::Add);
             }
             _ => panic!(),
