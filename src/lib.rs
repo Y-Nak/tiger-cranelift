@@ -17,4 +17,5 @@ mod impl_prelude {
     pub use error::Error;
     pub use interner::{kw, Symbol};
     pub use pos::{BytePos, Cursor, Pos};
+    pub use ty::{Ty, TyKind};
 }
