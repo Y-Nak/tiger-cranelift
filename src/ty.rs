@@ -14,16 +14,21 @@ impl Ty {
 
 #[derive(Clone)]
 pub enum TyKind {
+    Int,
+    Unit,
+    Nil,
     Alias(Symbol),
     Array(Box<Ty>),
     Record(Vec<(Symbol, Ty)>),
+    Invalid,
 }
 
 impl TyKind {
     pub fn is_complete(&self) -> bool {
         use TyKind::*;
         match self {
-            Alias(_) => false,
+            Int | Unit | Nil => true,
+            Alias(_) | Invalid => false,
             Array(ty) => ty.kind.is_complete(),
             Record(field) => {
                 for (_, t) in field.iter() {
