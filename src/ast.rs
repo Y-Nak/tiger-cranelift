@@ -109,7 +109,7 @@ pub enum ExprKind {
     Array {
         size: Box<Expr>,
         init: Box<Expr>,
-        ty: Ty,
+        elem_ty: Ty,
     },
     If {
         cond: Box<Expr>,

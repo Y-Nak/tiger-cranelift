@@ -1,4 +1,5 @@
 use crate::impl_prelude::*;
+use TyKind::*;
 
 #[derive(Clone)]
 pub struct Ty {
@@ -32,7 +33,6 @@ pub enum TyKind {
 
 impl TyKind {
     pub fn is_complete(&self) -> bool {
-        use TyKind::*;
         match self {
             Int | Unit | Nil | String_ => true,
             Alias(_) | Invalid => false,
@@ -45,6 +45,34 @@ impl TyKind {
                 }
                 true
             }
+        }
+    }
+
+    pub fn is_record(&self) -> bool {
+        match self {
+            Record { .. } => true,
+            _ => false,
+        }
+    }
+
+    pub fn is_array(&self) -> bool {
+        match self {
+            Array { .. } => true,
+            _ => false,
+        }
+    }
+
+    pub fn record_field_unchecked(&self) -> &[(Symbol, TyKind)] {
+        match self {
+            TyKind::Record { field, .. } => &field,
+            _ => panic!("Expected record type"),
+        }
+    }
+
+    pub fn array_elem_unchecked(&self) -> &TyKind {
+        match self {
+            TyKind::Array { elem_ty, .. } => elem_ty,
+            _ => panic!("Expectd array type"),
         }
     }
 }

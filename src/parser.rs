@@ -258,7 +258,7 @@ impl<'a> Parser<'a> {
                 let kind = ExprKind::Array {
                     size: expr.into(),
                     init: init.into(),
-                    ty: Ty::new(TyKind::Alias(name), pos),
+                    elem_ty: Ty::new(TyKind::Alias(name), pos),
                 };
                 return Ok(Expr::new(kind, pos + self.current_pos()));
             } else {
@@ -663,10 +663,14 @@ mod tests {
         let code = "int [N + 10] of a * a";
         let expr = parse(code);
         match expr.kind {
-            ExprKind::Array { size, init, ty } => {
+            ExprKind::Array {
+                size,
+                init,
+                elem_ty,
+            } => {
                 assert_eq!(extract_binop(*size).0, BinOpKind::Add);
                 assert_eq!(extract_binop(*init).0, BinOpKind::Mul);
-                assert_eq!(extract_alias_ty(&ty.kind), "int");
+                assert_eq!(extract_alias_ty(&elem_ty.kind), "int");
             }
             _ => panic!(),
         }
