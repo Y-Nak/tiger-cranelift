@@ -16,6 +16,14 @@ impl Cursor {
     pub fn proceed_byte(self, proceed: BytePos) -> Self {
         Self::new(self.byte_pos + proceed, self.line)
     }
+
+    pub fn dummy() -> Self {
+        Self::new(0, 0)
+    }
+
+    pub fn is_dummy(self) -> bool {
+        self.byte_pos == 0 && self.line == 0
+    }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -29,11 +37,19 @@ impl Pos {
         Self { start, end }
     }
 
+    pub fn dummy() -> Self {
+        Self::new(Cursor::dummy(), Cursor::dummy())
+    }
+
     pub fn from_cursor(start: Cursor) -> Self {
         Self {
             start,
             end: start.proceed_byte(1),
         }
+    }
+
+    pub fn is_dummy(self) -> bool {
+        self.start.is_dummy() || self.end.is_dummy()
     }
 }
 
