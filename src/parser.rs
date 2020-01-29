@@ -408,7 +408,7 @@ impl<'a> Parser<'a> {
         self.expect(TokenKind::ColonEq)?;
         let init = self.parse_expr()?;
 
-        let kind = DeclKind::VarDec(VarDec { name, init, ty });
+        let kind = DeclKind::VarDec(VarDec { name, init, ty }.into());
         Ok(Decl::new(kind, pos + self.current_pos()))
     }
 
@@ -431,7 +431,7 @@ impl<'a> Parser<'a> {
         self.expect(TokenKind::Eq_)?;
         let body = self.parse_expr()?;
         let func = Function::new(name, args, ret_ty, body);
-        let kind = DeclKind::Function(func);
+        let kind = DeclKind::Function(func.into());
         Ok(Decl::new(kind, pos + self.current_pos()))
     }
 

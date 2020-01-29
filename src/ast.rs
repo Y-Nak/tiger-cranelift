@@ -13,8 +13,8 @@ impl Decl {
 
 pub enum DeclKind {
     TyDec { name: Symbol, ty: Ty },
-    VarDec(VarDec),
-    Function(Function),
+    VarDec(Box<VarDec>),
+    Function(Box<Function>),
 }
 
 pub struct VarDec {

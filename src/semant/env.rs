@@ -60,17 +60,16 @@ impl VEnv {
     }
 
     fn insert(&mut self, name: Symbol, entry: ValueEntry) -> bool {
-        match self.0.look(name) {
-            Some(ValueEntry {
-                depth: inserted_depth,
-                ..
-            }) => {
-                if *inserted_depth != entry.depth {
-                    return false;
-                }
+        if let Some(ValueEntry {
+            depth: inserted_depth,
+            ..
+        }) = self.0.look(name)
+        {
+            if *inserted_depth != entry.depth {
+                return false;
             }
-            None => {}
         }
+
         self.0.insert(name, entry);
         true
     }
@@ -103,17 +102,16 @@ impl TEnv {
 
     pub fn insert(&mut self, name: Symbol, ty: TyKind, depth: u32) -> bool {
         debug_assert!(!ty.is_alias());
+
         let entry = TyEntry { ty, depth };
-        match self.0.look(name) {
-            Some(TyEntry {
-                depth: inserted_depth,
-                ..
-            }) => {
-                if *inserted_depth == entry.depth {
-                    return false;
-                }
+        if let Some(TyEntry {
+            depth: inserted_depth,
+            ..
+        }) = self.0.look(name)
+        {
+            if *inserted_depth == entry.depth {
+                return false;
             }
-            None => {}
         }
 
         self.0.insert(name, entry);

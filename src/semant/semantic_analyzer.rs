@@ -25,7 +25,7 @@ impl SemanticAnalyzer {
 
     pub fn analyze_expr(&mut self, expr: &mut Expr) -> Result<()> {
         let kind = match &mut expr.kind {
-            ExprKind::BinOp { kind, lhs, rhs } => self.analyze_binop(kind, lhs, rhs)?,
+            ExprKind::BinOp { kind, lhs, rhs } => self.analyze_binop(*kind, lhs, rhs)?,
             ExprKind::UnOp {
                 kind: UnOpKind::Minus,
                 lhs,
@@ -34,7 +34,7 @@ impl SemanticAnalyzer {
                 self.expect_int(lhs)?;
                 TyKind::Int
             }
-            ExprKind::Lit(lit) => self.analyze_literal(lit)?,
+            ExprKind::Lit(lit) => self.analyze_literal(*lit)?,
             ExprKind::Call { name, args } => self.analyze_call(*name, args, expr.pos)?,
             ExprKind::Record { fields, ty } => self.analyze_record(fields, &ty, expr.pos)?,
             ExprKind::Array {
@@ -131,12 +131,7 @@ impl SemanticAnalyzer {
         Ok(())
     }
 
-    fn analyze_binop(
-        &mut self,
-        kind: &BinOpKind,
-        lhs: &mut Expr,
-        rhs: &mut Expr,
-    ) -> Result<TyKind> {
+    fn analyze_binop(&mut self, kind: BinOpKind, lhs: &mut Expr, rhs: &mut Expr) -> Result<TyKind> {
         use BinOpKind::*;
         self.analyze_expr(lhs)?;
         self.analyze_expr(rhs)?;
@@ -153,7 +148,7 @@ impl SemanticAnalyzer {
         Ok(result_ty)
     }
 
-    fn analyze_literal(&self, lit: &LitKind) -> Result<TyKind> {
+    fn analyze_literal(&self, lit: LitKind) -> Result<TyKind> {
         let ty_kind = match lit {
             LitKind::LitStr(..) => TyKind::String_,
             LitKind::Num(_) => TyKind::Int, // TODO: Check maximum integer value;
@@ -457,5 +452,11 @@ impl SemanticAnalyzer {
         self.depth -= 1;
         self.venv.exit_scope();
         self.tenv.exit_scope();
+    }
+}
+
+impl Default for SemanticAnalyzer {
+    fn default() -> Self {
+        SemanticAnalyzer::new()
     }
 }

@@ -36,7 +36,7 @@ impl<'a> AliasResolver<'a> {
         let mut visited = HashSet::new();
         for i in 0..self.work_list.len() {
             self.try_resolve(self.work_list[i], &mut visited)?;
-            debug_assert!(visited.len() == 0);
+            debug_assert!(visited.is_empty());
         }
 
         Ok(self
