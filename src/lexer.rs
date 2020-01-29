@@ -110,12 +110,10 @@ impl<'a> Lexer<'a> {
             c if c.is_alphabetic() || c == '_' => self.parse_ident(start),
             c if c.is_numeric() => {
                 if c == '0' {
-                    return Err(Error::new(
-                        "Number must not start with 0".into(),
-                        Pos::from_cursor(self.cursor()),
-                    ));
+                    self.parse_num(start, true)?
+                } else {
+                    self.parse_num(start, false)?
                 }
-                self.parse_num(start)
             }
             c => {
                 return Err(Error::new(
@@ -145,16 +143,21 @@ impl<'a> Lexer<'a> {
         Token::new(kind, Pos::new(start, self.cursor()))
     }
 
-    fn parse_num(&mut self, start: Cursor) -> Token {
+    fn parse_num(&mut self, start: Cursor, start_with_zero: bool) -> Result<Token> {
         while let Some(c) = self.peek_char() {
-            if c.is_numeric() {
+            if c.is_numeric() && !start_with_zero {
                 self.next_char();
+            } else if c.is_numeric() {
+                return Err(Error::new(
+                    "Number must not start with zero".into(),
+                    Pos::from_cursor(self.cursor()),
+                ));
             } else {
                 break;
             }
         }
         let kind = Num(self.symbol_from(start.byte_pos, self.byte_pos));
-        Token::new(kind, Pos::new(start, self.cursor()))
+        Ok(Token::new(kind, Pos::new(start, self.cursor())))
     }
 
     fn parse_litstr(&mut self, start: Cursor) -> Result<Token> {

@@ -99,8 +99,14 @@ impl SemanticAnalyzer {
 
     fn analyze_var_dec(&mut self, var_dec: &mut VarDec) -> Result<()> {
         self.analyze_expr(&mut var_dec.init)?;
-        if var_dec.ty.is_some() {
-            todo!();
+
+        let var_ty = if let Some(ty) = &var_dec.ty {
+            let resolved_ty = self.resolve_alias(&ty.kind, ty.pos)?;
+            if resolved_ty == TyKind::Nil {
+                return Err(Error::new("Can't declare Nil type variable".into(), ty.pos));
+            }
+            self.try_type_promotion(&resolved_ty, &var_dec.init.ty.kind, var_dec.init.pos)?;
+            Ty::new(resolved_ty, ty.pos)
         } else {
             if var_dec.init.ty.kind == TyKind::Nil {
                 return Err(Error::new(
@@ -108,21 +114,32 @@ impl SemanticAnalyzer {
                     var_dec.init.pos,
                 ));
             }
-            self.venv
-                .insert_var(var_dec.name, var_dec.init.ty.kind.clone(), self.depth);
-            var_dec.ty = Some(var_dec.init.ty.clone());
-        }
+            var_dec.init.ty.clone()
+        };
+
+        self.venv
+            .insert_var(var_dec.name, var_ty.kind.clone(), self.depth);
+        var_dec.ty = Some(var_ty);
         Ok(())
     }
 
     fn analyze_func(&mut self, f: &mut Function) -> Result<()> {
+        for (_, ty) in f.args.iter_mut() {
+            let resolved_ty = Ty::new(self.resolve_alias(&ty.kind, ty.pos)?, ty.pos);
+            *ty = resolved_ty;
+        }
+
         self.venv.insert_func(
             f.name,
-            f.args.iter().map(|arg| arg.1.kind.clone()).collect(),
+            f.args.iter().map(|arg| (arg.1.kind).clone()).collect(),
             f.ret_ty.kind.clone(),
             self.depth,
         );
+
         self.enter_scope();
+        for (name, ty) in f.args.iter() {
+            self.venv.insert_var(*name, ty.kind.clone(), self.depth);
+        }
         self.func_context = FuncContext::new(self.depth);
         self.analyze_expr(&mut f.body)?;
         self.exit_scope();
@@ -136,16 +153,17 @@ impl SemanticAnalyzer {
         self.analyze_expr(lhs)?;
         self.analyze_expr(rhs)?;
 
-        let result_ty = match kind {
+        match kind {
             Add | Sub | Mul | Div | Lt | Le | Gt | Ge | LogicalAnd | LogicalOr => {
                 self.expect_int(lhs)?;
                 self.expect_int(rhs)?;
-                TyKind::Int
             }
-            Eq_ | Ne => self.try_type_promotion(&lhs.ty.kind, &rhs.ty.kind, lhs.pos + rhs.pos)?,
+            Eq_ | Ne => {
+                self.try_type_promotion(&lhs.ty.kind, &rhs.ty.kind, lhs.pos + rhs.pos)?;
+            }
         };
 
-        Ok(result_ty)
+        Ok(TyKind::Int)
     }
 
     fn analyze_literal(&self, lit: LitKind) -> Result<TyKind> {
@@ -172,9 +190,7 @@ impl SemanticAnalyzer {
         }
 
         for (arg_ty, arg) in arg_tys.iter().zip(args) {
-            if arg_ty != &arg.ty.kind {
-                return Err(Error::new("Inconsistent type".into(), arg.pos));
-            }
+            self.try_type_promotion(arg_ty, &arg.ty.kind, arg.pos)?;
         }
 
         Ok(ret_ty.clone())
@@ -224,13 +240,13 @@ impl SemanticAnalyzer {
             return Err(self.type_error(ty.pos));
         }
 
-        let result_ty = self.try_type_promotion(
+        self.try_type_promotion(
             &init.ty.kind,
             &self.resolve_alias(resolved_ty.array_elem_unchecked(), ty.pos)?,
             init.ty.pos,
         )?;
 
-        Ok(result_ty)
+        Ok(ty.kind.clone())
     }
 
     fn analyze_if(
@@ -358,7 +374,7 @@ impl SemanticAnalyzer {
         self.analyze_expr(index)?;
         self.expect_int(index)?;
 
-        Ok(lvalue.ty.kind.array_elem_unchecked().clone())
+        self.resolve_alias(lvalue.ty.kind.array_elem_unchecked(), pos)
     }
 
     fn analyze_assign(&mut self, lvalue: &mut Expr, rhs: &mut Expr, pos: Pos) -> Result<TyKind> {
@@ -458,5 +474,61 @@ impl SemanticAnalyzer {
 impl Default for SemanticAnalyzer {
     fn default() -> Self {
         SemanticAnalyzer::new()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::parser::Parser;
+
+    fn parse(code: &str) -> Expr {
+        let mut parser = Parser::new(code.as_bytes()).unwrap();
+        parser.parse().unwrap()
+    }
+
+    #[test]
+    fn test_binop() {
+        let code = "10 + 20";
+        let mut ast = parse(code);
+
+        let mut analyzer = SemanticAnalyzer::new();
+        assert!(analyzer.analyze_expr(&mut ast).is_ok());
+    }
+
+    #[test]
+    fn test_array() {
+        let code = "
+        let
+            type intArray = array of int
+
+            var intArray := intArray[10] of 0
+
+        in
+            intArray[3] := 20
+        end
+        ";
+
+        let mut ast = parse(code);
+
+        let mut analyzer = SemanticAnalyzer::new();
+        analyzer.analyze_expr(&mut ast).unwrap();
+    }
+
+    #[test]
+    fn test_rec_record() {
+        let code = "
+        let
+            var list_var := list{head=10, tail=nil}
+            type list = {head: int, tail: list}
+        in
+            list_var.tail := list {head=20, tail=nil}
+        end
+        ";
+
+        let mut ast = parse(code);
+
+        let mut analyzer = SemanticAnalyzer::new();
+        analyzer.analyze_expr(&mut ast).unwrap();
     }
 }

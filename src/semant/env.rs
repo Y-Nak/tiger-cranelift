@@ -31,7 +31,7 @@ impl VEnv {
         self.insert(name, entry)
     }
 
-    pub fn look_var(&mut self, name: Symbol) -> Option<(&TyKind, u32)> {
+    pub fn look_var(&self, name: Symbol) -> Option<(&TyKind, u32)> {
         match &self.0.look(name)? {
             ValueEntry {
                 kind: ValueEntryKind::Var { ty },
@@ -41,7 +41,7 @@ impl VEnv {
         }
     }
 
-    pub fn look_func(&mut self, name: Symbol) -> Option<(&[TyKind], &TyKind, u32)> {
+    pub fn look_func(&self, name: Symbol) -> Option<(&[TyKind], &TyKind, u32)> {
         match &self.0.look(name)? {
             ValueEntry {
                 kind: ValueEntryKind::Func { args, ret_ty },
