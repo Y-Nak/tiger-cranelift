@@ -9,6 +9,20 @@ impl Decl {
     pub fn new(kind: DeclKind, pos: Pos) -> Self {
         Self { kind, pos }
     }
+
+    pub fn is_func(&self) -> bool {
+        match self.kind {
+            DeclKind::Function(..) => true,
+            _ => false,
+        }
+    }
+
+    pub fn extract_func_unchecked(self) -> Function {
+        match self.kind {
+            DeclKind::Function(func) => *func,
+            _ => panic!(),
+        }
+    }
 }
 
 pub enum DeclKind {

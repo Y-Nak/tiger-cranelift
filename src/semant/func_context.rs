@@ -15,7 +15,7 @@ impl FuncContext {
 
     pub fn maybe_push_free_var(&mut self, var: (Symbol, &TyKind, u32)) -> bool {
         let (symbol, ty, depth) = var;
-        if self.depth >= depth {
+        if self.depth > depth {
             self.free_variables.push((symbol, ty.clone()));
             true
         } else {
