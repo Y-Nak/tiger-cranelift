@@ -19,6 +19,10 @@ impl Symbol {
         (self.0 as usize) < PREFILL.len()
     }
 
+    pub fn fresh(self) -> Self {
+        INTERNER.with(|interner| interner.borrow_mut().fresh(self))
+    }
+
     fn from_usize(n: usize) -> Self {
         Self(n as u32)
     }
@@ -32,6 +36,7 @@ struct Interner {
     strings: Arena<String>,
     string_refs: Vec<&'static str>,
     string_to_symbol: HashMap<&'static str, Symbol>,
+    fresh_id: u32,
 }
 
 impl Interner {
@@ -40,6 +45,7 @@ impl Interner {
             strings: Arena::new(),
             string_refs: Vec::new(),
             string_to_symbol: HashMap::new(),
+            fresh_id: 0,
         }
     }
 
@@ -65,6 +71,12 @@ impl Interner {
 
     fn as_str(&self, symbol: Symbol) -> &'static str {
         self.string_refs[symbol.as_usize()]
+    }
+
+    fn fresh(&mut self, symbol: Symbol) -> Symbol {
+        let s = format!("{}#{}", self.as_str(symbol), self.fresh_id);
+        self.fresh_id += 1;
+        self.intern(&s)
     }
 }
 
@@ -102,7 +114,8 @@ decl_kw! {
     (To,       "to",       13),
     (Type,     "type",     14),
     (Var,      "var",      15),
-    (While,    "while",    16)
+    (While,    "while",    16),
+    (Main,     "main",     17)
 }
 
 #[cfg(test)]
