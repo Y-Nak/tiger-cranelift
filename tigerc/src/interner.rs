@@ -23,12 +23,12 @@ impl Symbol {
         INTERNER.with(|interner| interner.borrow_mut().fresh(self))
     }
 
-    fn from_usize(n: usize) -> Self {
-        Self(n as u32)
+    pub fn as_usize(self) -> usize {
+        self.0 as usize
     }
 
-    fn as_usize(self) -> usize {
-        self.0 as usize
+    fn from_usize(n: usize) -> Self {
+        Self(n as u32)
     }
 }
 

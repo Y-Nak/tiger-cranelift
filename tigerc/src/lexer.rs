@@ -165,6 +165,7 @@ impl<'a> Lexer<'a> {
         while let Some(c) = self.peek_char() {
             if c == '"' {
                 self.next_char();
+                s.push('\0');
                 let kind = TokenKind::LitStr(Symbol::intern(&s));
                 return Ok(Token::new(kind, Pos::new(start, self.cursor())));
             } else if c == '\\' {
@@ -485,7 +486,7 @@ mod tests {
 
     #[test]
     fn test_lit_str() {
-        let litstr = Symbol::intern("TIGER COMPILER");
+        let litstr = Symbol::intern("TIGER COMPILER\0");
         let code = r#""TIGER COMPILER""#.as_bytes();
         let mut lexer = Lexer::new(code).unwrap();
         assert_eq!(LitStr(litstr), lexer.next_token().unwrap().kind);
@@ -493,7 +494,7 @@ mod tests {
 
     #[test]
     fn test_lit_str_escaped() {
-        let litstr = Symbol::intern("255 255");
+        let litstr = Symbol::intern("255 255\0");
         let code = r#""\xff \377""#.as_bytes();
         let mut lexer = Lexer::new(code).unwrap();
         assert_eq!(LitStr(litstr), lexer.next_token().unwrap().kind);

@@ -3,14 +3,14 @@ use crate::impl_prelude::*;
 use crate::symbol_table::SymbolTable;
 
 pub struct LambdaLifter {
-    func_env: SymbolTable<MangledFunctionDecl>,
+    func_env: FuncEnv,
     functions: Vec<Function>,
 }
 
 impl LambdaLifter {
     pub fn new() -> Self {
         Self {
-            func_env: SymbolTable::new(),
+            func_env: FuncEnv::new(),
             functions: Vec::new(),
         }
     }
@@ -110,7 +110,10 @@ impl LambdaLifter {
         }
     }
 
-    fn recompute_callsite(&self, name: &mut Symbol, args: &mut Vec<Expr>) {
+    fn recompute_callsite(&mut self, name: &mut Symbol, args: &mut Vec<Expr>) {
+        for arg in args.iter_mut() {
+            self.liftup_func_in_expr(arg);
+        }
         let mangled_dec = self.func_env.look(*name).unwrap();
         *name = mangled_dec.name;
         for free_var in mangled_dec.free_variables.iter() {
@@ -123,6 +126,54 @@ impl LambdaLifter {
 impl Default for LambdaLifter {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+struct FuncEnv(SymbolTable<MangledFunctionDecl>);
+
+impl FuncEnv {
+    pub fn new() -> Self {
+        let mut env = FuncEnv(SymbolTable::new());
+        env.prefill_builtin_functions();
+        env
+    }
+
+    fn prefill_builtin_functions(&mut self) {
+        self.prefill_func("print");
+        self.prefill_func("println");
+        self.prefill_func("print_int");
+        self.prefill_func("flush");
+        self.prefill_func("getchar");
+        self.prefill_func("ord");
+        self.prefill_func("chr");
+        self.prefill_func("substring");
+        self.prefill_func("concat");
+        self.prefill_func("size");
+        self.prefill_func("not");
+        self.prefill_func("exit");
+    }
+
+    fn prefill_func(&mut self, name: &str) {
+        let name = Symbol::intern(name);
+        let mangled_print = MangledFunctionDecl {
+            name,
+            free_variables: Vec::new(),
+        };
+
+        self.insert(name, mangled_print);
+    }
+}
+
+impl std::ops::Deref for FuncEnv {
+    type Target = SymbolTable<MangledFunctionDecl>;
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl std::ops::DerefMut for FuncEnv {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
     }
 }
 

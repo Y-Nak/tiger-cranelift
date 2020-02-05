@@ -79,6 +79,7 @@ impl PartialEq for TyKind {
     fn eq(&self, rhs: &Self) -> bool {
         match (self, rhs) {
             (TyKind::Int, TyKind::Int)
+            | (TyKind::Unit, TyKind::Unit)
             | (TyKind::String_, TyKind::String_)
             | (TyKind::Nil, TyKind::Nil) => true,
 

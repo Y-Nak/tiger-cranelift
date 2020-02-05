@@ -1,4 +1,5 @@
 pub mod ast;
+pub mod codegen;
 pub mod error;
 pub mod interner;
 pub mod lexer;
@@ -19,4 +20,19 @@ mod impl_prelude {
     pub use interner::{kw, Symbol};
     pub use pos::{BytePos, Cursor, Pos};
     pub use ty::{Ty, TyKind};
+}
+
+pub mod prelude {
+    pub use codegen::CodeGen;
+    pub use parser::Parser;
+    pub use semant::{LambdaLifter, SemanticAnalyzer};
+
+    use super::*;
+    use std::path::PathBuf;
+
+    #[derive(Clone)]
+    pub struct Opts {
+        pub output_path: PathBuf,
+        pub dump_clif: bool,
+    }
 }

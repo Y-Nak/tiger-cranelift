@@ -260,14 +260,23 @@ impl SemanticAnalyzer {
 
         self.analyze_expr(then)?;
 
-        if let Some(else_) = else_ {
-            self.analyze_expr(else_)?;
-            if then.ty.kind != else_.ty.kind {
-                return Err(self.type_error(else_.pos));
+        match else_ {
+            Some(else_) => {
+                self.analyze_expr(else_)?;
+                if then.ty.kind != else_.ty.kind {
+                    Err(self.type_error(else_.pos))
+                } else {
+                    Ok(then.ty.kind.clone())
+                }
+            }
+            None => {
+                if then.ty.kind != TyKind::Unit {
+                    Err(self.type_error(then.pos))
+                } else {
+                    Ok(TyKind::Unit)
+                }
             }
         }
-
-        Ok(then.ty.kind.clone())
     }
 
     fn analyze_while(&mut self, cond: &mut Expr, body: &mut Expr) -> Result<TyKind> {
@@ -278,7 +287,11 @@ impl SemanticAnalyzer {
         self.analyze_expr(body)?;
         self.loop_depth -= 1;
 
-        Ok(body.ty.kind.clone())
+        if body.ty.kind != TyKind::Unit {
+            return Err(Error::new("While body must not have type".into(), body.pos));
+        }
+
+        Ok(TyKind::Unit)
     }
 
     fn analyze_for(
@@ -299,6 +312,7 @@ impl SemanticAnalyzer {
 
         self.analyze_expr(body)?;
         if body.ty.kind != TyKind::Unit {
+            println!("{:?}", body.ty.kind);
             return Err(self.type_error(body.pos));
         }
 

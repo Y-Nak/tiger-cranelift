@@ -4,9 +4,10 @@ use crate::symbol_table::SymbolTable;
 pub struct VEnv(SymbolTable<ValueEntry>);
 
 impl VEnv {
-    // TODO: Add  built-in function
     pub fn new() -> Self {
-        Self(SymbolTable::new())
+        let mut env = Self(SymbolTable::new());
+        env.prefill_builtin_functions();
+        env
     }
 
     pub fn insert_func(
@@ -57,6 +58,33 @@ impl VEnv {
 
     pub fn exit_scope(&mut self) {
         self.0.exit_scope();
+    }
+
+    fn prefill_builtin_functions(&mut self) {
+        self.prefill_func("print", &[TyKind::String_], TyKind::Unit);
+        self.prefill_func("println", &[TyKind::String_], TyKind::Unit);
+        self.prefill_func("print_int", &[TyKind::Int], TyKind::Unit);
+        self.prefill_func("flush", &[], TyKind::Unit);
+        self.prefill_func("getchar", &[], TyKind::String_);
+        self.prefill_func("ord", &[TyKind::String_], TyKind::Int);
+        self.prefill_func("chr", &[TyKind::Int], TyKind::String_);
+        self.prefill_func(
+            "substring",
+            &[TyKind::String_, TyKind::Int, TyKind::Int],
+            TyKind::String_,
+        );
+        self.prefill_func(
+            "concat",
+            &[TyKind::String_, TyKind::String_],
+            TyKind::String_,
+        );
+        self.prefill_func("size", &[TyKind::String_], TyKind::Int);
+        self.prefill_func("not", &[TyKind::Int], TyKind::Int);
+        self.prefill_func("exit", &[TyKind::Int], TyKind::Unit);
+    }
+
+    fn prefill_func(&mut self, name: &str, args: &[TyKind], ret_ty: TyKind) {
+        self.insert_func(Symbol::intern(name), args.into(), ret_ty, 0);
     }
 
     fn insert(&mut self, name: Symbol, entry: ValueEntry) -> bool {
