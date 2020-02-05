@@ -1,0 +1,28 @@
+let
+    function factorial_rec(n: int): int =
+        if n > 1 then
+            factorial_rec(n-1) * n
+        else
+            n
+
+
+    function factorial_proc(n: int): int =
+        let
+            var res := 1
+        in
+            (
+                for i := 1 to n+1 do
+                (
+                    res := res * i;
+                    ()
+                );
+                res
+            )
+        end
+in
+    (
+        print_int(factorial_rec(5));
+        print_int(factorial_proc(5));
+        ()
+    )
+end

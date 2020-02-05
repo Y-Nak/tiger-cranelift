@@ -1,0 +1,18 @@
+let
+    var x := "Hello "
+    var y := "World!"
+in
+    print_int(size(x));
+    print_int(size(y));
+
+    println(concat(x, y));
+    println(concat(y, x));
+
+    print_int(ord(x));
+    print_int(ord(y));
+
+    println(chr(65));
+
+    println(substring(x, 1, 3));
+    println(substring(y, 0, 2))
+end

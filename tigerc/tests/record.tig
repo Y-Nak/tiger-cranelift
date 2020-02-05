@@ -1,0 +1,13 @@
+let
+    type Address = {zip: string, country: string}
+    type myRecord = {name: string, age: int, address: Address}
+    var my_record := myRecord{name = "Tiger", age = 100, address = nil}
+in
+    (
+        println(my_record.name);
+        print_int(my_record.age);
+        my_record.address := Address{zip = "000-0000", country = "somewhere"};
+        println(my_record.address.zip);
+        println(my_record.address.country)
+    )
+end

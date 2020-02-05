@@ -1,0 +1,19 @@
+let
+    type intArray = array of int
+    var len := 10
+    var a := intArray[len] of 100
+in (
+    for i := 0 to len do (
+        print_int(a[i])
+     );
+
+    for i := 0 to len do (
+        a[i] := i;
+        ()
+    );
+
+    for i := 0 to len do (
+        print_int(a[i])
+    )
+)
+end
