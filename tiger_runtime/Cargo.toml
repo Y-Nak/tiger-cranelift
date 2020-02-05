@@ -1,0 +1,9 @@
+[package]
+name = "tiger_runtime"
+version = "0.1.0"
+authors = ["Y-Nak <yurayura.rounin.3@gmail.com>"]
+edition = "2018"
+
+[lib]
+name = "tiger_runtime"
+crate-type = ["staticlib"]
