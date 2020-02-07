@@ -21,6 +21,7 @@ pub struct CodeGen {
     builder_ctx: FunctionBuilderContext,
     func_ctx: codegen::Context,
     func_env: FuncEnv,
+    global_env: GlobalEnv,
     opts: Opts,
     ir: String,
 }
@@ -45,6 +46,7 @@ impl CodeGen {
             builder_ctx: FunctionBuilderContext::new(),
             func_ctx,
             func_env: HashMap::new(),
+            global_env: HashMap::new(),
             opts,
             ir: String::new(),
         };
@@ -67,7 +69,12 @@ impl CodeGen {
         let func_id = self.declare_function(func.name, &func.args, &func.ret_ty, Linkage::Export);
 
         let builder = FunctionBuilder::new(&mut self.func_ctx.func, &mut self.builder_ctx);
-        let mut translator = FunctionTranslator::new(&mut self.module, builder, &self.func_env);
+        let mut translator = FunctionTranslator::new(
+            &mut self.module,
+            builder,
+            &self.func_env,
+            &mut self.global_env,
+        );
         translator.translate_func(&func);
 
         self.module
@@ -164,12 +171,18 @@ struct FunctionTranslator<'a> {
     value_env: ValueEnv,
     loop_env: Vec<Ebb>,
     func_env: &'a FuncEnv,
+    global_env: &'a mut GlobalEnv,
     ptr_type: Type,
     variable_id: usize,
 }
 
 impl<'a> FunctionTranslator<'a> {
-    fn new(module: &'a mut Module, builder: FunctionBuilder<'a>, func_env: &'a FuncEnv) -> Self {
+    fn new(
+        module: &'a mut Module,
+        builder: FunctionBuilder<'a>,
+        func_env: &'a FuncEnv,
+        global_env: &'a mut GlobalEnv,
+    ) -> Self {
         let ptr_type = module.target_config().pointer_type();
         Self {
             module,
@@ -177,6 +190,7 @@ impl<'a> FunctionTranslator<'a> {
             value_env: ValueEnv::new(),
             loop_env: Vec::new(),
             func_env,
+            global_env,
             ptr_type,
             variable_id: 0,
         }
@@ -307,15 +321,21 @@ impl<'a> FunctionTranslator<'a> {
             }
             ast::LitKind::Nil => self.null(),
             ast::LitKind::LitStr(s) => {
-                let label = format!(".LS{}", s.as_usize());
-                let data_id = self
-                    .module
-                    .declare_data(&label, Linkage::Local, false, None)
-                    .unwrap();
-                let mut data_ctx = DataContext::new();
-                data_ctx.define(s.as_str().to_owned().into_boxed_str().into());
-                self.module.define_data(data_id, &data_ctx).unwrap();
-                let str_ptr = self.module.declare_data_in_func(data_id, self.builder.func);
+                let str_ptr = if let Some(str_ptr) = self.global_env.get(&s) {
+                    *str_ptr
+                } else {
+                    let label = format!(".LS{}", s.as_usize());
+                    let data_id = self
+                        .module
+                        .declare_data(&label, Linkage::Local, false, None)
+                        .unwrap();
+                    let mut data_ctx = DataContext::new();
+                    data_ctx.define(s.as_str().to_owned().into_boxed_str().into());
+                    self.module.define_data(data_id, &data_ctx).unwrap();
+                    let str_ptr = self.module.declare_data_in_func(data_id, self.builder.func);
+                    self.global_env.insert(s, str_ptr);
+                    str_ptr
+                };
                 self.builder.ins().global_value(self.ptr_type, str_ptr)
             }
         }
@@ -416,7 +436,7 @@ impl<'a> FunctionTranslator<'a> {
 
         let cond = self.translate_expr(cond);
         self.builder.ins().brz(cond, merge_bb, &[]);
-        self.builder.ins().jump(merge_bb, &[]);
+        self.builder.ins().jump(then_bb, &[]);
 
         self.builder.seal_block(then_bb);
         self.builder.switch_to_block(then_bb);
@@ -618,6 +638,7 @@ impl<'a> FunctionTranslator<'a> {
 
 type ValueEnv = SymbolTable<Variable>;
 type FuncEnv = HashMap<Symbol, FuncId>;
+type GlobalEnv = HashMap<Symbol, codegen::ir::GlobalValue>;
 
 fn translate_ty(ty: &Ty, module: &Module) -> Option<types::Type> {
     match ty.kind {
