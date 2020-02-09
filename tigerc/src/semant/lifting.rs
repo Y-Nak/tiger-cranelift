@@ -29,53 +29,37 @@ impl LambdaLifter {
             Let { decls, body } => {
                 self.func_env.enter_scope();
 
-                // 1. Mangle function name, then copy free variables to their args.
-                // 2. Register mangled function to env.
-                for decl in decls.iter_mut() {
-                    if let DeclKind::Function(func) = &mut decl.kind {
-                        let mangled_name = func.name.fresh();
-                        let mangled_decl = MangledFunctionDecl {
-                            name: mangled_name,
-                            free_variables: func
-                                .free_variables
-                                .iter()
-                                .map(|(arg_name, _)| *arg_name)
-                                .collect(),
-                        };
-                        self.func_env.insert(func.name, mangled_decl);
-                        recompute_func_decl(func, mangled_name);
-                    }
-                }
+                // Liftup functions in declaration.
+                self.mangle_decls(decls);
+                self.liftup_decls(decls);
 
-                // Make function global.
-                let mut i = 0;
-                while i < decls.len() {
-                    if decls[i].is_func() {
-                        let mut func = decls.remove(i).extract_func_unchecked();
-                        self.liftup_func_in_expr(&mut func.body);
-                        self.functions.push(func);
-                    } else {
-                        i += 1;
-                    }
-                }
-
+                // Liftup functions in expression.
                 self.liftup_func_in_expr(body);
 
                 self.func_env.exit_scope();
             }
-            Call { name, args } => self.recompute_callsite(name, args),
-            BinOp { lhs, rhs, .. } => {
+
+            UnOp { lhs, .. } | FieldAccess { lvalue: lhs, .. } => self.liftup_func_in_expr(lhs),
+
+            BinOp { lhs, rhs, .. }
+            | Assign { lvalue: lhs, rhs }
+            | Index {
+                lvalue: lhs,
+                index: rhs,
+            }
+            | While {
+                cond: lhs,
+                body: rhs,
+            }
+            | Array {
+                size: lhs,
+                init: rhs,
+                ..
+            } => {
                 self.liftup_func_in_expr(lhs);
                 self.liftup_func_in_expr(rhs);
             }
-            UnOp { lhs, .. } => self.liftup_func_in_expr(lhs),
-            Record { fields, .. } => fields
-                .iter_mut()
-                .for_each(|(_, field)| self.liftup_func_in_expr(field)),
-            Array { size, init, .. } => {
-                self.liftup_func_in_expr(size);
-                self.liftup_func_in_expr(init);
-            }
+
             If { cond, then, else_ } => {
                 self.liftup_func_in_expr(cond);
                 self.liftup_func_in_expr(then);
@@ -83,30 +67,61 @@ impl LambdaLifter {
                     self.liftup_func_in_expr(else_);
                 }
             }
-            While { cond, body } => {
-                self.liftup_func_in_expr(cond);
-                self.liftup_func_in_expr(body);
-            }
+
             For { from, to, body, .. } => {
                 self.liftup_func_in_expr(from);
                 self.liftup_func_in_expr(to);
                 self.liftup_func_in_expr(body);
             }
+
+            Record { fields, .. } => fields
+                .iter_mut()
+                .for_each(|(_, field)| self.liftup_func_in_expr(field)),
+
             ExprSeq(exprs) => exprs
                 .iter_mut()
                 .for_each(|expr| self.liftup_func_in_expr(expr)),
 
-            FieldAccess { lvalue, .. } => self.liftup_func_in_expr(lvalue),
-            Index { lvalue, index } => {
-                self.liftup_func_in_expr(lvalue);
-                self.liftup_func_in_expr(index);
-            }
-            Assign { lvalue, rhs } => {
-                self.liftup_func_in_expr(lvalue);
-                self.liftup_func_in_expr(rhs)
-            }
+            Call { name, args } => self.recompute_callsite(name, args),
 
             Break | Var(_) | Lit(_) => {}
+        }
+    }
+
+    fn mangle_decls(&mut self, decls: &mut [Decl]) {
+        for decl in decls.iter_mut() {
+            self.mangle_decl(decl);
+        }
+    }
+
+    fn liftup_decls(&mut self, decls: &mut Vec<Decl>) {
+        let mut i = 0;
+        while i < decls.len() {
+            if decls[i].is_func() {
+                let mut func = decls.remove(i).extract_func_unchecked();
+                self.liftup_func_in_expr(&mut func.body);
+                self.functions.push(func);
+            } else {
+                i += 1;
+            }
+        }
+    }
+
+    /// 1. Mangle function name, then copy free variables to their args.
+    /// 2. Register mangled function to env.
+    fn mangle_decl(&mut self, decl: &mut Decl) {
+        if let DeclKind::Function(func) = &mut decl.kind {
+            let mangled_name = func.name.fresh();
+            let mangled_decl = MangledFunctionDecl {
+                name: mangled_name,
+                free_variables: func
+                    .free_variables
+                    .iter()
+                    .map(|(arg_name, _)| *arg_name)
+                    .collect(),
+            };
+            self.func_env.insert(func.name, mangled_decl);
+            recompute_func_decl(func, mangled_name);
         }
     }
 

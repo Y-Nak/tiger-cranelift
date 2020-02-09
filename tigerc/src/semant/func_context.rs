@@ -15,7 +15,7 @@ impl FuncContext {
 
     pub fn maybe_push_free_var(&mut self, var: (Symbol, &TyKind, u32)) -> bool {
         let (symbol, ty, depth) = var;
-        if self.depth > depth {
+        if self.depth > depth && !self.contains(symbol) {
             self.free_variables.push((symbol, ty.clone()));
             true
         } else {
@@ -27,5 +27,12 @@ impl FuncContext {
         let mut vars = Vec::new();
         std::mem::swap(&mut self.free_variables, &mut vars);
         vars
+    }
+
+    fn contains(&self, symbol: Symbol) -> bool {
+        self.free_variables
+            .iter()
+            .find(|(name, _)| *name == symbol)
+            .is_some()
     }
 }
