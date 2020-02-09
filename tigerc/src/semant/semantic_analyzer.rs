@@ -1,3 +1,5 @@
+// TODO: More user-friendly error messages.
+// TODO: Check duplication of record field name.
 use crate::ast::*;
 use crate::impl_prelude::*;
 
