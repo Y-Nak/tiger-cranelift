@@ -12,8 +12,7 @@ in (
         ()
     );
 
-    for i := 0 to len do (
+    for i := 0 to len do
         print_int(a[i])
-    )
 )
 end
