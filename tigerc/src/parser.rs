@@ -326,6 +326,7 @@ impl<'a> Parser<'a> {
                 index: index.into(),
             };
             lvalue = Expr::new(kind, pos + self.current_pos);
+            self.expect(TokenKind::RBracket)?;
             self.parse_access(lvalue)
         } else {
             Ok(lvalue)
