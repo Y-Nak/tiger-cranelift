@@ -77,13 +77,13 @@ impl CodeGen {
         );
         translator.translate_func(&func);
 
+        if self.opts.dump_clif {
+            self.ir.push_str(&format!("{}\n", self.func_ctx.func));
+        }
+
         self.module
             .define_function(func_id, &mut self.func_ctx)
             .unwrap();
-
-        if self.opts.dump_clif {
-            self.ir.push_str(&format!("{}", self.func_ctx.func));
-        }
 
         self.module.clear_context(&mut self.func_ctx);
     }
@@ -169,7 +169,7 @@ struct FunctionTranslator<'a> {
     module: &'a mut Module,
     builder: FunctionBuilder<'a>,
     value_env: ValueEnv,
-    loop_env: Vec<Ebb>,
+    loop_env: Vec<Block>,
     func_env: &'a FuncEnv,
     global_env: &'a mut GlobalEnv,
     ptr_type: Type,
@@ -197,18 +197,18 @@ impl<'a> FunctionTranslator<'a> {
     }
 
     fn translate_func(&mut self, func: &ast::Function) {
-        // Create first ebb of function.
-        let func_entry = self.builder.create_ebb();
+        // Create first block of function.
+        let func_entry = self.builder.create_block();
 
         // Handle function parameters.
         self.builder
-            .append_ebb_params_for_function_params(func_entry);
+            .append_block_params_for_function_params(func_entry);
         self.builder.seal_block(func_entry);
         self.builder.switch_to_block(func_entry);
         for (i, (name, _)) in func.args.iter().enumerate() {
             let var = self.new_variable(*name);
             self.builder
-                .def_var(var, self.builder.ebb_params(func_entry)[i]);
+                .def_var(var, self.builder.block_params(func_entry)[i]);
         }
 
         // Translate body.
@@ -405,10 +405,10 @@ impl<'a> FunctionTranslator<'a> {
         then: &ast::Expr,
         else_: &ast::Expr,
     ) -> Value {
-        let then_bb = self.builder.create_ebb();
-        let else_bb = self.builder.create_ebb();
-        let merge_bb = self.builder.create_ebb();
-        self.builder.append_ebb_param(merge_bb, self.ptr_type);
+        let then_bb = self.builder.create_block();
+        let else_bb = self.builder.create_block();
+        let merge_bb = self.builder.create_block();
+        self.builder.append_block_param(merge_bb, self.ptr_type);
 
         let cond = self.translate_expr(cond);
         self.builder.ins().brz(cond, else_bb, &[]);
@@ -427,12 +427,12 @@ impl<'a> FunctionTranslator<'a> {
 
         self.builder.seal_block(merge_bb);
         self.builder.switch_to_block(merge_bb);
-        self.builder.ebb_params(merge_bb)[0]
+        self.builder.block_params(merge_bb)[0]
     }
 
     fn translate_if(&mut self, cond: &ast::Expr, then: &ast::Expr) -> Value {
-        let then_bb = self.builder.create_ebb();
-        let merge_bb = self.builder.create_ebb();
+        let then_bb = self.builder.create_block();
+        let merge_bb = self.builder.create_block();
 
         let cond = self.translate_expr(cond);
         self.builder.ins().brz(cond, merge_bb, &[]);
@@ -449,9 +449,9 @@ impl<'a> FunctionTranslator<'a> {
     }
 
     fn translate_while(&mut self, cond: &ast::Expr, body: &ast::Expr) -> Value {
-        let header_bb = self.builder.create_ebb();
-        let body_bb = self.builder.create_ebb();
-        let end_bb = self.builder.create_ebb();
+        let header_bb = self.builder.create_block();
+        let body_bb = self.builder.create_block();
+        let end_bb = self.builder.create_block();
 
         self.builder.ins().jump(header_bb, &[]);
         self.builder.switch_to_block(header_bb);
@@ -481,9 +481,9 @@ impl<'a> FunctionTranslator<'a> {
         body: &ast::Expr,
     ) -> Value {
         self.value_env.enter_scope();
-        let header_bb = self.builder.create_ebb();
-        let body_bb = self.builder.create_ebb();
-        let end_bb = self.builder.create_ebb();
+        let header_bb = self.builder.create_block();
+        let body_bb = self.builder.create_block();
+        let end_bb = self.builder.create_block();
 
         let var = self.new_variable(var);
         let from = self.translate_expr(from);
@@ -534,16 +534,16 @@ impl<'a> FunctionTranslator<'a> {
         let end_bb = self.loop_env.last().unwrap();
         self.builder.ins().jump(*end_bb, &[]);
 
-        let new_bb = self.builder.create_ebb();
+        let new_bb = self.builder.create_block();
         self.builder.seal_block(new_bb);
         self.builder.switch_to_block(new_bb);
         self.null()
     }
 
     fn translate_logical_expr(&mut self, lhs: &ast::Expr, rhs: &ast::Expr, is_and: bool) -> Value {
-        let b1 = self.builder.create_ebb();
-        let merge_bb = self.builder.create_ebb();
-        self.builder.append_ebb_param(merge_bb, self.ptr_type);
+        let b1 = self.builder.create_block();
+        let merge_bb = self.builder.create_block();
+        self.builder.append_block_param(merge_bb, self.ptr_type);
 
         let lhs = self.translate_expr(lhs);
 
@@ -562,7 +562,7 @@ impl<'a> FunctionTranslator<'a> {
 
         self.builder.seal_block(merge_bb);
         self.builder.switch_to_block(merge_bb);
-        self.builder.ebb_params(merge_bb)[0]
+        self.builder.block_params(merge_bb)[0]
     }
 
     fn translate_field_access(&mut self, lvalue: &ast::Expr, field: Symbol) -> Value {

@@ -11,9 +11,9 @@ typed-arena = "2.0.1"
 colored = "1.9.2"
 clap = "2.31.2"
 
-cranelift = "0.56.0"
-cranelift-module = "0.56.0"
-cranelift-object = "0.56.0"
+cranelift = "0.58.0"
+cranelift-module = "0.58.0"
+cranelift-object = "0.58.0"
 
 target-lexicon = "0.10.0"
 
