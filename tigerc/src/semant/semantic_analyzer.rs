@@ -264,7 +264,7 @@ impl SemanticAnalyzer {
             Some(else_) => {
                 self.analyze_expr(else_)?;
                 if then.ty.kind != else_.ty.kind {
-                    Err(self.type_error(else_.pos))
+                    Err(self.type_error(then.pos + else_.pos))
                 } else {
                     Ok(then.ty.kind.clone())
                 }

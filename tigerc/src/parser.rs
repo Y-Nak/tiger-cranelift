@@ -5,6 +5,7 @@ use crate::lexer::{Lexer, Token, TokenKind};
 pub struct Parser<'a> {
     lexer: Lexer<'a>,
     unique_ty_id: u32,
+    current_pos: Pos,
 }
 
 impl<'a> Parser<'a> {
@@ -12,6 +13,7 @@ impl<'a> Parser<'a> {
         Ok(Self {
             lexer: Lexer::new(code)?,
             unique_ty_id: 0,
+            current_pos: Pos::from_cursor(Cursor::new(0, 0)),
         })
     }
 
@@ -36,7 +38,7 @@ impl<'a> Parser<'a> {
             if self.eat(TokenKind::RParen)?.is_some() {
                 return Ok(Expr::new(
                     ExprKind::ExprSeq(vec![]),
-                    lp_token.pos + self.current_pos(),
+                    lp_token.pos + self.current_pos,
                 ));
             }
 
@@ -48,7 +50,7 @@ impl<'a> Parser<'a> {
 
             Ok(Expr::new(
                 ExprKind::ExprSeq(exprs),
-                lp_token.pos + self.current_pos(),
+                lp_token.pos + self.current_pos,
             ))
         } else {
             self.parse_logical_or()
@@ -76,7 +78,7 @@ impl<'a> Parser<'a> {
             then: then.into(),
             else_: else_.map(|else_| else_.into()),
         };
-        Ok(Expr::new(kind, if_token.pos + self.current_pos()))
+        Ok(Expr::new(kind, if_token.pos + self.current_pos))
     }
 
     fn parse_while(&mut self, while_token: Token) -> Result<Expr> {
@@ -92,7 +94,7 @@ impl<'a> Parser<'a> {
             body: body.into(),
         };
 
-        Ok(Expr::new(kind, while_token.pos + self.current_pos()))
+        Ok(Expr::new(kind, while_token.pos + self.current_pos))
     }
 
     fn parse_for(&mut self, for_token: Token) -> Result<Expr> {
@@ -117,7 +119,7 @@ impl<'a> Parser<'a> {
             body: body.into(),
         };
 
-        Ok(Expr::new(kind, for_token.pos + self.current_pos()))
+        Ok(Expr::new(kind, for_token.pos + self.current_pos))
     }
 
     fn parse_let(&mut self, let_token: Token) -> Result<Expr> {
@@ -126,7 +128,7 @@ impl<'a> Parser<'a> {
             decls.push(self.parse_decl()?);
         }
 
-        let expr_start_pos = self.current_pos();
+        let expr_start_pos = self.current_pos;
         let (expr_seq, expr_pos) = if self.eat_kw(kw::End)?.is_some() {
             (vec![], expr_start_pos)
         } else {
@@ -134,7 +136,7 @@ impl<'a> Parser<'a> {
             while self.eat(TokenKind::SemiColon)?.is_some() {
                 expr_seq.push(self.parse_expr()?);
             }
-            let expr_pos = expr_start_pos + self.current_pos();
+            let expr_pos = expr_start_pos + self.current_pos;
             self.expect_kw(kw::End)?;
             (expr_seq, expr_pos)
         };
@@ -144,7 +146,7 @@ impl<'a> Parser<'a> {
             decls,
             body: body.into(),
         };
-        Ok(Expr::new(kind, let_token.pos + self.current_pos()))
+        Ok(Expr::new(kind, let_token.pos + self.current_pos))
     }
 
     fn parse_logical_or(&mut self) -> Result<Expr> {
@@ -177,7 +179,7 @@ impl<'a> Parser<'a> {
                 TokenKind::Ne => BinOpKind::Ne,
                 _ => break,
             };
-            self.lexer.next_token()?;
+            self.next_token()?;
             let rhs = self.parse_term()?;
             lhs = Expr::binop(lhs, rhs, binop_kind);
         }
@@ -192,7 +194,7 @@ impl<'a> Parser<'a> {
                 TokenKind::Minus => BinOpKind::Sub,
                 _ => break,
             };
-            self.lexer.next_token()?;
+            self.next_token()?;
             let rhs = self.parse_term()?;
             lhs = Expr::binop(lhs, rhs, binop_kind);
         }
@@ -207,7 +209,7 @@ impl<'a> Parser<'a> {
                 TokenKind::Slash => BinOpKind::Div,
                 _ => break,
             };
-            self.lexer.next_token()?;
+            self.next_token()?;
             let rhs = self.parse_unop()?;
             lhs = Expr::binop(lhs, rhs, binop_kind);
         }
@@ -220,7 +222,7 @@ impl<'a> Parser<'a> {
             Ok(Expr::unop(
                 lhs,
                 UnOpKind::Minus,
-                token.pos + self.current_pos(),
+                token.pos + self.current_pos,
             ))
         } else {
             self.parse_primary()
@@ -246,7 +248,7 @@ impl<'a> Parser<'a> {
             let args = self.parse_args()?;
             return Ok(Expr::new(
                 ExprKind::Call { name, args },
-                pos + self.current_pos(),
+                pos + self.current_pos,
             ));
         } else if self.eat(TokenKind::LBracket)?.is_some() {
             // Parse array initalization or indexing.
@@ -260,7 +262,7 @@ impl<'a> Parser<'a> {
                     init: init.into(),
                     elem_ty: Ty::new(TyKind::Alias(name), pos),
                 };
-                return Ok(Expr::new(kind, pos + self.current_pos()));
+                return Ok(Expr::new(kind, pos + self.current_pos));
             } else {
                 // Parse indexing.
                 let var = Expr::new(ExprKind::Var(name), pos);
@@ -268,7 +270,7 @@ impl<'a> Parser<'a> {
                     lvalue: var.into(),
                     index: expr.into(),
                 };
-                let lvalue = Expr::new(kind, pos + self.current_pos());
+                let lvalue = Expr::new(kind, pos + self.current_pos);
                 self.parse_access(lvalue)?
             }
         } else if self.eat(TokenKind::LBrace)?.is_some() {
@@ -278,7 +280,7 @@ impl<'a> Parser<'a> {
                 fields,
                 ty: Ty::new(TyKind::Alias(name), pos),
             };
-            return Ok(Expr::new(kind, pos + self.current_pos()));
+            return Ok(Expr::new(kind, pos + self.current_pos));
         } else if self.eat(TokenKind::Dot)?.is_some() {
             // Parse field access.
             let (field, _) = self.expect_var()?;
@@ -287,7 +289,7 @@ impl<'a> Parser<'a> {
                 lvalue: var.into(),
                 field,
             };
-            let lvalue = Expr::new(kind, pos + self.current_pos());
+            let lvalue = Expr::new(kind, pos + self.current_pos);
             self.parse_access(lvalue)?
         } else {
             // Parse s.imple var
@@ -301,7 +303,7 @@ impl<'a> Parser<'a> {
                 lvalue: lvalue.into(),
                 rhs: rhs.into(),
             };
-            Ok(Expr::new(kind, pos + self.current_pos()))
+            Ok(Expr::new(kind, pos + self.current_pos))
         } else {
             Ok(lvalue)
         }
@@ -315,7 +317,7 @@ impl<'a> Parser<'a> {
                 lvalue: lvalue.into(),
                 field,
             };
-            lvalue = Expr::new(kind, pos + self.current_pos());
+            lvalue = Expr::new(kind, pos + self.current_pos);
             self.parse_access(lvalue)
         } else if self.eat(TokenKind::LBracket)?.is_some() {
             let index = self.parse_expr()?;
@@ -323,7 +325,7 @@ impl<'a> Parser<'a> {
                 lvalue: lvalue.into(),
                 index: index.into(),
             };
-            lvalue = Expr::new(kind, pos + self.current_pos());
+            lvalue = Expr::new(kind, pos + self.current_pos);
             self.parse_access(lvalue)
         } else {
             Ok(lvalue)
@@ -349,21 +351,17 @@ impl<'a> Parser<'a> {
             self.expect(TokenKind::Eq_)?;
             let ty = self.parse_ty()?;
             let kind = DeclKind::TyDec { name, ty };
-            Ok(Decl::new(kind, ty_token.pos + self.current_pos()))
+            Ok(Decl::new(kind, ty_token.pos + self.current_pos))
         } else if let Some(var_token) = self.eat_kw(kw::Var)? {
             self.parse_var_dec(var_token.pos)
         } else if let Some(func_token) = self.eat_kw(kw::Function)? {
             self.parse_func_dec(func_token.pos)
         } else {
-            Err(Error::new(
-                "Expected declaration".into(),
-                self.current_pos(),
-            ))
+            Err(Error::new("Expected declaration".into(), self.current_pos))
         }
     }
 
     fn parse_ty(&mut self) -> Result<Ty> {
-        // TODO: Check key name duplication
         if let Some(lb_token) = self.eat(TokenKind::LBrace)? {
             let field: Vec<(Symbol, TyKind)> = self
                 .parse_ty_fields()?
@@ -376,7 +374,7 @@ impl<'a> Parser<'a> {
                 field,
                 unique: self.get_unique(),
             };
-            let ty = Ty::new(ty_kind, lb_token.pos + self.current_pos());
+            let ty = Ty::new(ty_kind, lb_token.pos + self.current_pos);
             Ok(ty)
         } else if let Some(array_token) = self.eat_kw(kw::Array)? {
             self.expect_kw(kw::Of)?;
@@ -387,7 +385,7 @@ impl<'a> Parser<'a> {
                 elem_ty,
                 unique: self.get_unique(),
             };
-            let ty = Ty::new(ty_kind, array_token.pos + self.current_pos());
+            let ty = Ty::new(ty_kind, array_token.pos + self.current_pos);
             Ok(ty)
         } else {
             self.parse_ty_alias()
@@ -409,7 +407,7 @@ impl<'a> Parser<'a> {
         let init = self.parse_expr()?;
 
         let kind = DeclKind::VarDec(VarDec { name, init, ty }.into());
-        Ok(Decl::new(kind, pos + self.current_pos()))
+        Ok(Decl::new(kind, pos + self.current_pos))
     }
 
     fn parse_func_dec(&mut self, pos: Pos) -> Result<Decl> {
@@ -432,7 +430,7 @@ impl<'a> Parser<'a> {
         let body = self.parse_expr()?;
         let func = Function::new(name, args, ret_ty, body);
         let kind = DeclKind::Function(func.into());
-        Ok(Decl::new(kind, pos + self.current_pos()))
+        Ok(Decl::new(kind, pos + self.current_pos))
     }
 
     fn parse_ty_fields(&mut self) -> Result<Vec<(Symbol, Ty)>> {
@@ -477,7 +475,7 @@ impl<'a> Parser<'a> {
 
     fn eat(&mut self, kind: TokenKind) -> Result<Option<Token>> {
         if self.lexer.peek_token().kind == kind {
-            Ok(Some(self.lexer.next_token()?))
+            Ok(Some(self.next_token()?))
         } else {
             Ok(None)
         }
@@ -487,7 +485,7 @@ impl<'a> Parser<'a> {
         self.eat(kind)?.ok_or_else(|| {
             Error::new(
                 format!("Expected {}", kind.as_str()).into(),
-                self.current_pos(),
+                self.current_pos,
             )
         })
     }
@@ -497,19 +495,15 @@ impl<'a> Parser<'a> {
     }
 
     fn expect_kw(&mut self, kw: Symbol) -> Result<Token> {
-        self.eat_kw(kw)?.ok_or_else(|| {
-            Error::new(
-                format!("Expected {}", kw.as_str()).into(),
-                self.current_pos(),
-            )
-        })
+        self.eat_kw(kw)?
+            .ok_or_else(|| Error::new(format!("Expected {}", kw.as_str()).into(), self.current_pos))
     }
 
     fn eat_var(&mut self) -> Result<Option<(Symbol, Pos)>> {
         let token = self.lexer.peek_token();
         match token.kind.var() {
             Some(symbol) => {
-                self.lexer.next_token()?;
+                self.next_token()?;
                 Ok(Some((symbol, token.pos)))
             }
             None => Ok(None),
@@ -517,7 +511,7 @@ impl<'a> Parser<'a> {
     }
 
     fn expect_var(&mut self) -> Result<(Symbol, Pos)> {
-        let token = self.lexer.next_token()?;
+        let token = self.next_token()?;
         match token.kind.var() {
             Some(symbol) => Ok((symbol, token.pos)),
             None => Err(Error::new("Expected variable".into(), token.pos)),
@@ -528,7 +522,7 @@ impl<'a> Parser<'a> {
         let token = self.lexer.peek_token();
         match token.kind.num() {
             Some(symbol) => {
-                self.lexer.next_token()?;
+                self.next_token()?;
                 Ok(Some((symbol, token.pos)))
             }
             None => Ok(None),
@@ -539,21 +533,23 @@ impl<'a> Parser<'a> {
         let token = self.lexer.peek_token();
         match token.kind.litstr() {
             Some(symbol) => {
-                self.lexer.next_token()?;
+                self.next_token()?;
                 Ok(Some((symbol, token.pos)))
             }
             None => Ok(None),
         }
     }
 
-    fn current_pos(&self) -> Pos {
-        self.lexer.current_pos()
-    }
-
     fn get_unique(&mut self) -> u32 {
         let id = self.unique_ty_id;
         self.unique_ty_id += 1;
         id
+    }
+
+    fn next_token(&mut self) -> Result<Token> {
+        let next_token = self.lexer.next_token()?;
+        self.current_pos = next_token.pos;
+        Ok(next_token)
     }
 }
 

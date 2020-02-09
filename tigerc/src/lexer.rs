@@ -36,10 +36,6 @@ impl<'a> Lexer<'a> {
         Ok(current_token)
     }
 
-    pub fn current_pos(&self) -> Pos {
-        Pos::from_cursor(self.cursor())
-    }
-
     fn next_token_impl(&mut self) -> Result<Token> {
         if self.peek_char().is_none() {
             self.peek = self.eof();
@@ -118,7 +114,7 @@ impl<'a> Lexer<'a> {
             c => {
                 return Err(Error::new(
                     format!("Invalid character: {}", c).into(),
-                    Pos::from_cursor(self.cursor()),
+                    Pos::from_cursor(start),
                 ))
             }
         };
