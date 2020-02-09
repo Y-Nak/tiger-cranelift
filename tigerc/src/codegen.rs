@@ -28,10 +28,14 @@ pub struct CodeGen {
 
 impl CodeGen {
     pub fn new(opts: Opts) -> Self {
-        // TODO: Add compilation option.
+        let mut flag_builder = codegen::settings::builder();
+        flag_builder.set("opt_level", &opts.opt_level).unwrap();
+
         let flag = codegen::settings::Flags::new(codegen::settings::builder());
 
+        // Target isa is same as host machine.
         let isa = codegen::isa::lookup(Triple::host()).unwrap().finish(flag);
+
         let builder = ObjectBuilder::new(
             isa,
             "".into(),
@@ -39,6 +43,7 @@ impl CodeGen {
             cranelift_module::default_libcall_names(),
         )
         .unwrap();
+
         let module = Module::new(builder);
         let func_ctx = module.make_context();
         let mut gen = Self {
@@ -50,6 +55,7 @@ impl CodeGen {
             opts,
             ir: String::new(),
         };
+
         gen.prefill_builtin_functions();
         gen
     }
@@ -77,13 +83,13 @@ impl CodeGen {
         );
         translator.translate_func(&func);
 
-        if self.opts.dump_clif {
-            self.ir.push_str(&format!("{}\n", self.func_ctx.func));
-        }
-
         self.module
             .define_function(func_id, &mut self.func_ctx)
             .unwrap();
+
+        if self.opts.dump_clif {
+            self.ir.push_str(&format!("{}\n", self.func_ctx.func));
+        }
 
         self.module.clear_context(&mut self.func_ctx);
     }

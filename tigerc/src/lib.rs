@@ -34,5 +34,6 @@ pub mod prelude {
     pub struct Opts {
         pub output_path: PathBuf,
         pub dump_clif: bool,
+        pub opt_level: String,
     }
 }

@@ -10,17 +10,17 @@ pub fn main() {
     let matches = App::new("tigerc")
         .arg(Arg::with_name("file").index(1).required(true))
         .arg(
-            Arg::with_name("output_path")
+            Arg::from_usage("[output_path] -o <path> 'Place the output into <file>'")
                 .default_value("./a.out")
-                .short("o")
-                .help("Specify output file name")
                 .takes_value(true),
         )
         .arg(
-            Arg::with_name("dump_clif")
-                .short("d")
-                .help("Dump cranlift IR"),
+            Arg::from_usage("[opt_level] -O --opt-level <level> 'Specify optimization level'")
+                .possible_values(&["none", "speed", "speed_and_size"])
+                .default_value("none")
+                .takes_value(true),
         )
+        .arg(Arg::from_usage("[dump_clif] -d 'Also dump cranelift IR'"))
         .get_matches();
 
     let file = match matches.value_of("file") {
@@ -34,6 +34,7 @@ pub fn main() {
     let opts = Opts {
         output_path: PathBuf::from(matches.value_of("output_path").unwrap()),
         dump_clif: matches.is_present("dump_clif"),
+        opt_level: matches.value_of("opt_level").unwrap().into(),
     };
 
     let code = match fs::read_to_string(file) {
