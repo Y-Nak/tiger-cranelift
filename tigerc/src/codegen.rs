@@ -31,7 +31,7 @@ impl CodeGen {
         let mut flag_builder = codegen::settings::builder();
         flag_builder.set("opt_level", &opts.opt_level).unwrap();
 
-        let flag = codegen::settings::Flags::new(codegen::settings::builder());
+        let flag = codegen::settings::Flags::new(flag_builder);
 
         // Target isa is same as host machine.
         let isa = codegen::isa::lookup(Triple::host()).unwrap().finish(flag);
