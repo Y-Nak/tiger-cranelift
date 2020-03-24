@@ -4,6 +4,11 @@ Tiger-Cranelift is a Tiger language implementation using [cranelift](https://git
 The compiler emits native binaries using cranelift-object backend.  
 You can also find official cranelift-jit example [simplejit-demo](https://github.com/bytecodealliance/simplejit-demo).  
 
+## Specification
+See [Tiger Compiler Reference Manual](https://www.lrde.epita.fr/~tiger/tiger.html).  
+Some features in the specification are still missing.  
+I'll implement them in my free time.
+
 ## Implementation Summary
 
 ### Parsing
